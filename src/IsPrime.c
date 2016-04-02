@@ -24,7 +24,7 @@ int isPrime(int num){
 	return 1;
 }
 
-int __main()
+static int _____main()
 {
     int num;
     //scanf("%d",&num);

@@ -8,218 +8,249 @@
 #define TESTSIZE 40
 #define MAXINT 32767
 using namespace std;
-enum color{red,black};
-/*这是用于生成Graphviz兼容的dot文件的函数
-*接受一个FILE指针作为目标输出文件
-*newNode只接受一个vector,Vector内容为一个结点的所有域
-*drawLine为一个连接两个节点
-*必须要delete因为它的结束标志在析构函数中输出
-*/
-class DumpDOT {
-    FILE *fp;
-    int count;
-public:
-    DumpDOT(FILE *fp) : fp(fp) {
-        fprintf(fp, "digraph {\n");
-        fprintf(fp, "    node [shape = record];\n");
-        count = 0;
-    }
-    ~DumpDOT() { fprintf(fp, "}"); }
-    int newNode(std::vector<std::string> list) {
-        fprintf(fp, "    %d [label = \"", count);
-        bool first = true;
-        for (int i=0; i<list.size(); i++) {
-            std::string st = list[i];
-            if (!first)
-                fprintf(fp, "|");
-            first = false;
-            fprintf(fp, "<%d> %s", i, st.c_str());
-        }
-        fprintf(fp, "\"];\n");
-        return count++;
-    }
-    void drawLine(int nSrc, int pSrc, int nDst) {
-        fprintf(fp, "    %d", nSrc);
-        if (pSrc>=0)
-            fprintf(fp, ":%d", pSrc);
-        fprintf(fp, " -> %d;\n", nDst);
-    }
-};
-/*所有红黑树结点的类型*/
-class rbnode{
-public:
-    int value;
-    enum color color;
-    int size;
-    rbnode* parent,*left,*right;
-    rbnode(){
-        /*生成不含信息的nil结点*/
-        this->value=-1;
-        this->size=0;
-        this->color=black;
-        this->left=this->right=NULL;
-    }
-    rbnode(int key,enum color color){
-        /*生成含信息但不含nil的结点，需要在后续补上nil信息*/
-        this->color=color;this->value=key;this->size=1;
-        this->left=this->right=this->parent=NULL;
-    }
-};
+
 /*红黑树的类型，包括一个root结点和一个nil结点*/
 class rbtree{
-public:
+private:
     rbnode*nil;
     rbnode*root;
-    rbtree(){nil=new rbnode();root=nil;}
-    rbnode* newnode(int key,enum color color){
-        /*生成一个带本树nil的结点*/
-        rbnode*temp=new rbnode(key,color);
-        temp->left=temp->right=this->nil;
-        return temp;
-    }
-    rbnode* tree_minimum(rbnode*x){
-        /*沿左走到尽头*/
-        while(x->left!=nil)
-            x=x->left;
-        return x;
-    }
-    rbnode* tree_successor(rbnode* x){
+
+    void left_rotate(rbnode *x) {
         rbnode *y;
-        /*右子树沿左走到头*/
-        if(x->right!=nil){
-            return tree_minimum(x->right);
-        }else{
-        /*往回走到第一个（结点是其父节点的左结点的）结点*/
-            y=x->parent;
-            while(y!=nil&&y->right==x){
-                x=y;
-                y=y->parent;
-            }
-            return y;
+        y = x->right;
+        x->right = y->left;
+        if (y->left != this->nil) {
+            y->left->parent = x;
         }
-    }
-    void left_rotate(rbnode*x){
-        rbnode *y;
-        y=x->right;
-        x->right=y->left;
-        if(y->left!=this->nil){
-            y->left->parent=x;
+        y->parent = x->parent;
+        if (x->parent == this->nil) {
+            this->root = y;
+        } else if (x == x->parent->left) {
+            x->parent->left = y;
+        } else {
+            x->parent->right = y;
         }
-        y->parent=x->parent;
-        if(x->parent==this->nil){
-            this->root=y;
-        }else if(x==x->parent->left){
-            x->parent->left=y;
-        }else{
-            x->parent->right=y;
-        }
-        y->left=x;
-        x->parent=y;
+        y->left = x;
+        x->parent = y;
         /*无论左右旋，高的结点的度并不改变，低的结点的度重新计算*/
-        y->size=x->size;
-        x->size=x->right->size+x->left->size+1;
+        y->size = x->size;
+        x->size = x->right->size + x->left->size + 1;
         return;
     }
-    void right_rotate(rbnode*x){
+
+    void right_rotate(rbnode *x) {
         rbnode *y;
-        y=x->left;
-        x->left=y->right;
-        if(y->right!=this->nil){
-            y->right->parent=x;
+        y = x->left;
+        x->left = y->right;
+        if (y->right != this->nil) {
+            y->right->parent = x;
         }
-        y->parent=x->parent;
-        if(x->parent==this->nil){
-            this->root=y;
-        }else if(x==x->parent->left){
-            x->parent->left=y;
-        }else{
-            x->parent->right=y;
+        y->parent = x->parent;
+        if (x->parent == this->nil) {
+            this->root = y;
+        } else if (x == x->parent->left) {
+            x->parent->left = y;
+        } else {
+            x->parent->right = y;
         }
-        y->right=x;
-        x->parent=y;
+        y->right = x;
+        x->parent = y;
         /*无论左右旋，高的结点的度并不改变，低的结点的度重新计算*/
-        y->size=x->size;
-        x->size=x->right->size+x->left->size+1;
-        return ;
+        y->size = x->size;
+        x->size = x->right->size + x->left->size + 1;
+        return;
     }
-    void rbtree_transplant(rbnode*x,rbnode*y){
+
+    void rbtree_transplant(rbnode *x, rbnode *y) {
         /*把y为结点的子树移到x的位置*/
-        if(x->parent==this->nil){
-            this->root=y;
-        }else if(x==x->parent->left){
-            x->parent->left=y;
-        }else{
-            x->parent->right=y;
+        if (x->parent == this->nil) {
+            this->root = y;
+        } else if (x == x->parent->left) {
+            x->parent->left = y;
+        } else {
+            x->parent->right = y;
         }
-        y->parent=x->parent;
+        y->parent = x->parent;
     }
-    void rbtree_delete_fixup(rbnode*x){
+
+    void rbtree_delete_fixup(rbnode *x) {
         rbnode *w;
-        while(x!=this->root&&x->color==black){
-            if(x==x->parent->left){
-                w=x->parent->right;
-                if(w->color==red){
+        while (x != this->root && x->color == black) {
+            if (x == x->parent->left) {
+                w = x->parent->right;
+                if (w->color == red) {
                     /*Case1:x双重黑，x兄弟为红，x父亲为红，则x父亲变红、左旋，x兄弟变黑*/
-                    w->color=black;
-                    x->parent->color=red;
+                    w->color = black;
+                    x->parent->color = red;
                     left_rotate(x->parent);
-                    w=x->parent->right;
+                    w = x->parent->right;
                 }
-                if(w->left->color==black&&w->right->color==black){
+                if (w->left->color == black && w->right->color == black) {
                     /*Case2:x双重黑，x兄弟为黑，x兄弟孩子也都为黑，则把x和x兄弟的黑去掉一重添到x父亲上*/
-                    w->color=red;
-                    x=x->parent;
-                }else{
-                    if(w->right->color==black){
+                    w->color = red;
+                    x = x->parent;
+                } else {
+                    if (w->right->color == black) {
                         /*case3:x双重黑，x兄弟黑，x兄弟的左孩子红右孩子黑，
                         *则x兄弟左孩子右旋变黑，x兄弟原来的右孩子变红
                         *新格局为case4*/
-                        w->left->color=black;
-                        w->color=red;
+                        w->left->color = black;
+                        w->color = red;
                         right_rotate(w);
-                        w=x->parent->right;
+                        w = x->parent->right;
                     }
                     /*case4:x双重黑，x兄弟黑，x兄弟左孩子黑右孩子红
                     *则x的一重黑脱掉给x的父亲，x父亲左旋降下来
                     *x原兄弟的右孩子添上一重黑，树平衡了*/
-                    w->color=x->parent->color;
-                    x->parent->color=black;
-                    w->right->color=black;
+                    w->color = x->parent->color;
+                    x->parent->color = black;
+                    w->right->color = black;
                     left_rotate(x->parent);
-                    x=this->root;
+                    x = this->root;
                 }
-            }else{
-                w=x->parent->left;
-                if(w->color==red){
+            } else {
+                w = x->parent->left;
+                if (w->color == red) {
                     /*case1*/
-                    w->color=black;
-                    x->parent->color=red;
+                    w->color = black;
+                    x->parent->color = red;
                     right_rotate(x->parent);
-                    w=x->parent->left;
+                    w = x->parent->left;
                 }
-                if(w->right->color==black&&w->left->color==black){
+                if (w->right->color == black && w->left->color == black) {
                     /*case2*/
-                    w->color=red;
-                    x=x->parent;
-                }else{
-                    if(w->left->color==black){
+                    w->color = red;
+                    x = x->parent;
+                } else {
+                    if (w->left->color == black) {
                         /*case3*/
-                        w->right->color=black;
-                        w->color=red;
+                        w->right->color = black;
+                        w->color = red;
                         left_rotate(w);
-                        w=x->parent->left;
+                        w = x->parent->left;
                     }
                     /*case4*/
-                    w->color=x->parent->color;
-                    x->parent->color=black;
-                    w->left->color=black;
+                    w->color = x->parent->color;
+                    x->parent->color = black;
+                    w->left->color = black;
                     right_rotate(x->parent);
-                    x=this->root;
+                    x = this->root;
                 }
             }
         }
-        x->color=black;
+        x->color = black;
         return;
+    }
+
+    void rbtree_insert_fixup(rbnode *z) {
+        rbnode *y;
+        while (z->parent->color == red) {
+            if (z->parent == z->parent->parent->left) {
+                y = z->parent->parent->right;
+                if (y->color == red) {
+                    /*Case1:z/z的父节点/z的叔节点都是红色的，则父辈和祖父互换，考虑祖父*/
+                    z->parent->color = black;
+                    y->color = black;
+                    z->parent->parent->color = red;
+                    z = z->parent->parent;
+                } else {
+                    /*Case2:z/z的父节点是红的，z的叔结点是黑色，z是z父亲的右孩子，则左旋，归约到case3*/
+                    if (z == z->parent->right) {
+                        z = z->parent;
+                        left_rotate(z);
+                    }
+                    /*Case3:z/z的父节点是红的，z的叔结点是黑色的，z是z父亲的左孩子，则父节点变黑色，祖父变红并右旋*/
+                    z->parent->color = black;
+                    z->parent->parent->color = red;
+                    right_rotate(z->parent->parent);
+                }
+            } else {
+                y = z->parent->parent->left;
+                if (y->color == red) {
+                    /*Case1*/
+                    z->parent->color = black;
+                    y->color = black;
+                    z->parent->parent->color = red;
+                    z = z->parent->parent;
+                } else {
+                    if (z == z->parent->left) {
+                        /*Case2*/
+                        z = z->parent;
+                        right_rotate(z);
+                    }
+                    /*Case3*/
+                    z->parent->color = black;
+                    z->parent->parent->color = red;
+                    left_rotate(z->parent->parent);
+                }
+            }//else,z->parent==z->parent->parent->right
+        }//while
+        this->root->color = black;
+        return;
+    }
+
+public:
+    class rbnode {
+    public:
+        int value;
+        enum color color;
+        int size;
+        rbnode *parent, *left, *right;
+
+        rbnode() {
+            /*生成不含信息的nil结点*/
+            this->value = -1;
+            this->size = 0;
+            this->color = black;
+            this->left = this->right = NULL;
+        }
+
+        rbnode(int key, enum color color) {
+            /*生成含信息但不含nil的结点，需要在后续补上nil信息*/
+            this->color = color;
+            this->value = key;
+            this->size = 1;
+            this->left = this->right = this->parent = NULL;
+        }
+    };
+
+    enum color {
+        red, black
+    };
+
+    rbtree() {
+        nil = new rbnode();
+        root = nil;
+    }
+
+    rbnode *newnode(int key, enum color color) {
+        /*生成一个带本树nil的结点*/
+        rbnode *temp = new rbnode(key, color);
+        temp->left = temp->right = this->nil;
+        return temp;
+    }
+
+    rbnode *tree_minimum(rbnode *x) {
+        /*沿左走到尽头*/
+        while (x->left != nil)
+            x = x->left;
+        return x;
+    }
+
+    rbnode *tree_successor(rbnode *x) {
+        rbnode *y;
+        /*右子树沿左走到头*/
+        if (x->right != nil) {
+            return tree_minimum(x->right);
+        } else {
+            /*往回走到第一个（结点是其父节点的左结点的）结点*/
+            y = x->parent;
+            while (y != nil && y->right == x) {
+                x = y;
+                y = y->parent;
+            }
+            return y;
+        }
     }
     void rbtree_delete(rbnode*z){
         rbnode*x,*y,*tobechangesize;
@@ -271,52 +302,7 @@ public:
         else if(i<k) return os_select(x->left,i);
         else return os_select(x->right,i-k);
     }
-    void rbtree_insert_fixup(rbnode*z){
-        rbnode*y;
-        while(z->parent->color==red){
-            if(z->parent==z->parent->parent->left){
-                y=z->parent->parent->right;
-                if(y->color==red){
-                /*Case1:z/z的父节点/z的叔节点都是红色的，则父辈和祖父互换，考虑祖父*/
-                    z->parent->color=black;
-                    y->color=black;
-                    z->parent->parent->color=red;
-                    z=z->parent->parent;
-                }else{
-                /*Case2:z/z的父节点是红的，z的叔结点是黑色，z是z父亲的右孩子，则左旋，归约到case3*/
-                    if(z==z->parent->right){
-                        z=z->parent;
-                        left_rotate(z);
-                    }
-                    /*Case3:z/z的父节点是红的，z的叔结点是黑色的，z是z父亲的左孩子，则父节点变黑色，祖父变红并右旋*/
-                    z->parent->color=black;
-                    z->parent->parent->color=red;
-                    right_rotate(z->parent->parent);
-                }
-            }else{
-                y=z->parent->parent->left;
-                if(y->color==red){
-                /*Case1*/
-                    z->parent->color=black;
-                    y->color=black;
-                    z->parent->parent->color=red;
-                    z=z->parent->parent;
-                }else{
-                    if(z==z->parent->left){
-                    /*Case2*/
-                        z=z->parent;
-                        right_rotate(z);
-                    }
-                    /*Case3*/
-                    z->parent->color=black;
-                    z->parent->parent->color=red;
-                    left_rotate(z->parent->parent);
-                }
-            }//else,z->parent==z->parent->parent->right
-        }//while
-        this->root->color=black;
-        return ;
-    }
+
     void rbtree_insert(rbnode*z){
         rbnode *x,*y;
         y=this->nil;
@@ -350,40 +336,6 @@ public:
         }
         rbtree_insert_fixup(z);
         return ;
-    }
-
-    int dumpdot(rbnode*x,DumpDOT*dumper){
-        int nThis=1;
-        if(x!=nil){
-            /*以下几行是为了生成结点信息域的vector*/
-            char num_to_string[50];
-            vector<string> dump_list;
-            dump_list.push_back(" ");
-            sprintf(num_to_string,"%d",x->value);
-            dump_list.push_back(num_to_string);
-            strcpy(num_to_string,"");
-            sprintf(num_to_string,"%d",x->size);
-            dump_list.push_back(num_to_string);
-            if(x->color==red){
-                dump_list.push_back("red");
-            }else{
-                dump_list.push_back("black");
-            }
-            dump_list.push_back(" ");
-            /*生成当前结点*/
-            nThis=dumper->newNode(dump_list);
-            if(x->left!=nil){
-                /*生成左结点并连线*/
-                int nLeft=dumpdot(x->left,dumper);
-                dumper->drawLine(nThis,0,nLeft);
-            }
-            if(x->right!=nil){
-                /*生成右结点*/
-                int nRight=dumpdot(x->right,dumper);
-                dumper->drawLine(nThis,4,nRight);
-            }
-        }
-        return nThis;
     }
 };
 
