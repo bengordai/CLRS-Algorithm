@@ -20,5 +20,7 @@ void ShellSort(T array[], int length);
 void InsertionSort(T array[], int length);
 void RadixSort(int array[], int length);
 void CountingSort(int *A, int length);
-bool isPrime(int num);
+bool isPrime_determined(int num);//朴素的检查素数算法
+bool isPrime_MillerRabin(int num);//MillerRabin算法，并且在64bit情况下保证正确
+
 #endif //CLRS_UTILITY_H
