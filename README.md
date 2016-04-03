@@ -1,5 +1,5 @@
 # CLRS-Algorithm
-在学习算法导论时写下的代码，主要是用c写的，和课本代码差别不大
+在学习算法导论时写下的代码，主要是用cpp写的，和课本代码差别不大
 
 redblacktree.cpp中主要代码都在redblack的那个类中
 

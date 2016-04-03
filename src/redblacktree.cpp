@@ -5,7 +5,6 @@
 #include <ctime>
 #include <cstring>
 #include <vector>
-#define TESTSIZE 40
 #define MAXINT 32767
 using namespace std;
 

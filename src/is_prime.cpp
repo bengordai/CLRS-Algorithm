@@ -1,5 +1,5 @@
-#include <stdio.h>
-#include <math.h>
+#include <cstdio>
+#include <cmath>
 
 
 ///if num is 2n or 3n, that's the easy case
@@ -9,7 +9,7 @@
 ///the way to change 2 to 4 and change 4 to 2 automaticly
 /// is that
 ///2 xor 4 == 6 so 2 xor 6 == 4 and 4 xor 6 == 2
-int isPrime(int num){	
+bool isPrime(int num){
 	if (num <= 0) return 0;
 	if (num <= 3) return 1; 
 	if (num % 2 == 0) return 0;
@@ -18,10 +18,10 @@ int isPrime(int num){
 	int i;
 	int step = 4;
 	for (i = 5; i <= sqrt_of_num; i +=  step){
-		if (num % i == 0) return 0;
+		if (num % i == 0) return false;
 		step ^= 6;
 	}
-	return 1;
+	return true;
 }
 
 static int _____main()
